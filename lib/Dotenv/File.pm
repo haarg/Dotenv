@@ -431,22 +431,12 @@ Reads a dotenv file and returns a Dotenv::File object to access or modify it.
 
 =head2 write
 
-=head1 AUTHOR
+=head1 AUTHORS
 
-haarg - Graham Knop (cpan:HAARG) <haarg@haarg.org>
+See L<Dotenv> for authors.
 
-=head2 CONTRIBUTORS
+=head1 COPYRIGHT AND LICENSE
 
-None so far.
-
-=head1 COPYRIGHT
-
-Copyright (c) 2019 the Dotenv::File L</AUTHOR> and L</CONTRIBUTORS>
-as listed above.
-
-=head1 LICENSE
-
-This library is free software and may be distributed under the same terms
-as perl itself.
+See L<Dotenv> for the copyright and license.
 
 =cut

@@ -236,13 +236,20 @@ The original version of this module was created as part of my work
 for L<BOOKING.COM|http://www.booking.com/>, which authorized its
 publication/distribution under the same terms as Perl itself.
 
-=head1 AUTHOR
+=head1 AUTHORS
 
 Philippe Bruhat (BooK) <book@cpan.org>
 
+Graham Knop (haarg) <haarg@haarg.org>
+
+=head2 CONTRIBUTORS
+
+None so far.
+
 =head1 COPYRIGHT
 
-Copyright 2019 Philippe Bruhat (BooK), all rights reserved.
+Copyright (c) 2019 the Dotenv L</AUTHORS> and L</CONTRIBUTORS>
+as listed above.
 
 =head1 LICENSE
 
