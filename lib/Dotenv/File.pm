@@ -236,7 +236,6 @@ sub read {
         push @lines, $entry;
         if (exists $settings{$key}) {
             carp "Found duplicate setting '$key' at $name line $ln";
-            $settings{$key}[0] = undef;
             $settings{$key}[1] = undef;
         }
         $settings{$key} = $entry;
@@ -260,7 +259,7 @@ sub exists {
 sub get {
     my ($self, $key) = @_;
     my $ref = $self->{settings}{$key};
-    return $ref && $ref->[0];
+    return $ref && $ref->[1];
 }
 
 sub set {
@@ -311,15 +310,15 @@ sub as_hash {
     my ($self) = @_;
     return
         map +( $_->[0], $_->[1] ),
-        grep defined $_->[0],
+        grep defined $_->[1],
         @{ $self->{lines} };
 }
 
 sub keys {
     my ($self) = @_;
     return
-        grep defined,
         map $_->[0],
+        grep defined $_->[1],
         @{ $self->{lines} };
 }
 
@@ -327,8 +326,10 @@ sub delete {
     my ($self, $key) = @_;
     my $ref = delete $self->{settings}{$key};
     if ($ref) {
-        my $value = $ref->[0];
-        @$ref = ();
+        my $value = $ref->[1];
+        @{ $self->{lines} }
+            = grep !(defined $_->[0] && $_->[0] eq $key),
+            @{ $self->{lines} };
         return $value;
     }
     return undef;
