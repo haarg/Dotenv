@@ -17,7 +17,7 @@ sub new {
       = !defined $settings       ? ()
       : ref $settings eq 'ARRAY' ? @$settings
       : ref $settings eq 'HASH'  ? %$settings
-      : croak "Invalid settings!";
+      : croak "settings must be an array ref or a hash ref!";
     while (my ($key, $value) = splice @settings, 0, 2) {
         $self->set($key, $value);
     }
