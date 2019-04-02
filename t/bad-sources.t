@@ -26,7 +26,7 @@ for my $source (@bad) {
     like(
         $@,
         defined $source
-        ? qr/^Don't know how to handle '\Q$source\E' /
+        ? qr/^Don't know how to read from '\Q$source\E' /
         : qr/^Can't handle an unitialized value /,
         '... got expected error message'
     );
