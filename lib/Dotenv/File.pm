@@ -391,7 +391,7 @@ C<new_config.env>:
 
     SETTING_ONE=1
 
-    SETTING_TWO=0# important
+    SETTING_TWO=0  # important
 
     #More settings:
     SETTING_THREE=3
