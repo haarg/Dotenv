@@ -405,31 +405,91 @@ maintaining the order and comments of the original file.
 
 =head1 METHODS
 
+=head2 new
+
+=head3 options
+
+=over 4
+
+=item strict
+
+Default false.  In strict mode, only things that can actually be parsed by a
+shell will be accepted.  When strict is off, whitespace is allowed surrouding
+the =, keys can include any word character as well as C<.> and C<->, and C<\n>
+sequences in values are translated to real newline characters.
+
+=item export
+
+Default to the inverse of the strict flag.  Allows a leading C<export > on
+entries.
+
+=item settings
+
+A hashref or arrayref of settings to apply in the inital object.
+
+=back
+
 =head2 read
 
 =over 4
 
 =item Dotenv::File->read($file, %options);
 
+=item Dotenv::File->new->read($file);
+
 =back
 
 Reads a dotenv file and returns a Dotenv::File object to access or modify it.
 
+Can be called on an existing object, or as a class method.  When called as a
+class method, also accepts the same options as the new method.
+
+If duplicate settings already exist in the object, they will be deleted.
+Duplicates within the content being read will trigger warnings, but their
+content will be maintained in the output text.
+
 =head2 get
+
+Gets a value.
 
 =head2 set
 
+Sets a value.
+
 =head2 exists
+
+Check if a key exists.
 
 =head2 delete
 
+Deletes a key.  The entire line the key exists on will be removed.
+
 =head2 keys
+
+Returns a list of keys that are set, in the same order they were read from the
+file.
 
 =head2 as_hash
 
+Returns a list of key value pairs, in the same order they were read from the
+file.
+
 =head2 as_hashref
 
+Returns the values from the file as a hashref.
+
+=head2 lines
+
+Returns the content of the file as a list of lines, including terminating
+newlines.
+
+=head2 content
+
+Returns the full content of the file as a string.
+
 =head2 write
+
+Writes the content to a file.
 
 =head1 AUTHORS
 
