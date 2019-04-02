@@ -85,57 +85,28 @@ sub _fail {
 my $key_strict_re = qr{[a-zA-Z_][a-zA-Z0-9_]*};
 my $key_loose_re  = qr/[\w.-]+/;
 
-sub _reader {
+sub _to_fh {
     my ($read) = @_;
 
     my $name;
 
-    if (ref $read eq '') {
-        $name = $read;
-        open my $fh, '<', $read
-            or croak "Unable to read $read: $!";
-        $read = $fh;
-    }
-    elsif ( ref $read eq 'ARRAY' ) {
-        $name = 'array content';
-        my @read = @$read;
-        s/\n?\z/\n/ for @read;
-        $read = \join('', @read);
-    }
-
     if (ref $read eq 'SCALAR') {
         $name ||= 'scalar content';
-        return $name => sub {
-            $$read =~ m/\G(.*?)(?:\r\n?|\n|\z)/gc
-                or return undef;
-            return "$1";
-        }
+    }
+
+    if (ref $read eq '' || ref $read eq 'SCALAR') {
+        $name ||= $read;
+        open my $fh, '<', $read
+            or croak "Unable to read $name: $!";
+        $read = $fh;
     }
     elsif ( openhandle($read) ) {
-        $name ||= 'file handle';
-        return $name => sub {
-            my $line = readline $read;
-            return undef
-                if !defined $line;
-            chomp $line;
-            utf8::decode($line) unless utf8::is_utf8($line);
-            return $line;
-        };
-    }
-    elsif ( blessed($read) && eval { $read->can('getline') } ) {
-        $name ||= 'object';
-        return $name => sub {
-            my $line = $read->getline;
-            return undef
-                if !defined $line;
-            chomp $line;
-            utf8::decode($line) unless utf8::is_utf8($line);
-            return $line;
-        };
+        $name = 'file handle';
     }
     else {
         croak "Don't know how to read from '$read'";
     }
+    return ($name, $read);
 }
 
 sub read {
@@ -144,7 +115,7 @@ sub read {
 
     my $self = ref $class ? $class : $class->new(@_);
 
-    my ($name, $reader) = _reader($file);
+    my ($name, $read) = _to_fh($file);
     local $/ = "\n";
 
     my @lines;
@@ -173,8 +144,10 @@ sub read {
     }x;
 
     my $ln = 0;
-    while (defined( my $line = $reader->() )) {
+    while (defined( my $line = readline $read )) {
         $ln++;
+        chomp $line;
+        utf8::decode($line) unless utf8::is_utf8($line);
 
         my $prefix = '';
         if ($ln == 1 and $line =~ m{\G(\x{feff})}gc) {
@@ -442,11 +415,14 @@ A hashref or arrayref of settings to apply in the inital object.
 
 Reads a dotenv file and returns a Dotenv::File object to access or modify it.
 
+The dotenv file can be provided as a file name, a reference to scalar content,
+or an open file handle.
+
 Can be called on an existing object, or as a class method.  When called as a
 class method, also accepts the same options as the new method.
 
 If duplicate settings already exist in the object, they will be deleted.
-Duplicates within the content being read will trigger warnings, but their
+Duplicates within the content being read will cause warnings, but their
 content will be maintained in the output text.
 
 =head2 get

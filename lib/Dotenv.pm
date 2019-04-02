@@ -3,7 +3,8 @@ package Dotenv;
 use strict;
 use warnings;
 
-use Carp       ();
+use Carp         ();
+use Scalar::Util ();
 use Dotenv::File;
 
 our @CARP_NOT = qw(Dotenv::File);
@@ -27,7 +28,7 @@ sub parse {
 
     my %env;
     for my $source (@sources) {
-        Carp::croak "Can't handle an unitialized value"
+        Carp::croak "Can't handle an uninitialized value"
           if !defined $source;
 
         my %kv;
@@ -35,6 +36,19 @@ sub parse {
             %kv = %$source;
         }
         else {
+            if ( ref $source eq 'ARRAY' ) { # bare array ref
+                $source = \join("\n", @$source);
+            }
+            elsif ( !ref $source || ref $source eq 'SCALAR' || Scalar::Util::openhandle($source) ) {
+                # already ok
+            }
+            elsif ( eval { $source->can('getline') } ) {
+                local $/;
+                $source = \scalar $source->getline;
+            }
+            else {
+                Carp::croak "Don't know how to read from '$source'";
+            }
             %kv = Dotenv::File->read($source)->as_hash;
         }
 

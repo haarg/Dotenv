@@ -27,7 +27,7 @@ for my $source (@bad) {
         $@,
         defined $source
         ? qr/^Don't know how to read from '\Q$source\E' /
-        : qr/^Can't handle an unitialized value /,
+        : qr/^Can't handle an uninitialized value /,
         '... got expected error message'
     );
     is( $kv, undef, '... and no data' );

@@ -25,7 +25,6 @@ foo='oh no'
 bar=welp #guff
 
 #boy howdy
-
 END_DOTENV
 
 $dotenv->set(bar => "blorp");
@@ -39,7 +38,6 @@ foo='oh no'
 bar=blorp #guff
 
 #boy howdy
-
 END_DOTENV
 
 $dotenv->delete('bar');
@@ -52,7 +50,6 @@ foo='oh no'
 
 
 #boy howdy
-
 END_DOTENV
 
 my $clone = do {
