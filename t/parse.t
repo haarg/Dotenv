@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 use Test::More;
-use Dotenv;
+use Dotenv::File;
 
 if (@ARGV && $ARGV[0] eq '--dump') {
     require Data::Dumper;
@@ -28,8 +28,10 @@ for my $env ( glob './t/env/*.env' ) {
     my $expected = do $pl or die "error loading $pl: " .($@||$!);
 
     # parse
-    my $got = Dotenv->parse($env);
-    is_deeply( $got, $expected, "$env (parse)" );
+    my $got = eval { Dotenv::File->read($env)->as_hashref };
+    my $e = $@ || undef;
+    is $e, undef;
+    is_deeply( $got, $expected, "parsed $env correctly" );
 }
 
 done_testing;

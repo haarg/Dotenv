@@ -4,7 +4,9 @@ use strict;
 use warnings;
 
 use Carp       ();
-use Path::Tiny ();
+use Dotenv::File;
+
+our @CARP_NOT = qw(Dotenv::File);
 
 sub import {
     my ( $package, @args ) = @_;
@@ -19,52 +21,6 @@ sub import {
     }
 }
 
-my $parse = sub {
-    my ( $string, $env ) = @_;
-    $string =~ s/\A\x{feff}//;    # drop BOM
-
-    my %kv;
-    for my $line ( split /$/m, $string ) {
-        chomp($line);
-        next if $line =~ /\A\s*(?:[#:]|\z)/;    # skip blanks and comments
-        if (
-            my ( $k, $v ) =
-            $line =~ m{
-            \A                       # beginning of line
-            \s*                      # leading whitespace
-            (?:export\s+)?           # optional export
-            ([a-zA-Z_][a-zA-Z0-9_]+) # key
-            (?:\s*=\s*)              # separator
-            (                        # optional value begin
-              '[^']*(?:\\'|[^']*)*'  #   single quoted value
-              |                      #   or
-              "[^"]*(?:\\"|[^"]*)*"  #   double quoted value
-              |                      #   or
-              [^\#\r\n]+             #   unquoted value
-            )?                       # value end
-            \s*                      # trailing whitespace
-            (?:\#.*)?                # optional comment
-            \z                       # end of line
-        }x
-          )
-        {
-            $v //= '';
-            $v =~ s/\s*\z//;
-
-	    # single and double quotes semantics
-            if ( $v =~ s/\A(['"])(.*)\1\z/$2/ && $1 eq '"' ) {
-                $v =~ s/\\n/\n/g;
-                $v =~ s/\\//g;
-            }
-            $kv{$k} = $v;
-        }
-        else {
-            Carp::croak "Can't parse env line: $line";
-        }
-    }
-    return %kv;
-};
-
 sub parse {
     my ( $package, @sources ) = @_;
     @sources = ('.env') if !@sources;
@@ -75,31 +31,11 @@ sub parse {
           if !defined $source;
 
         my %kv;
-        my $ref = ref $source;
-        if ( $ref eq '' ) {
-            %kv = $parse->( Path::Tiny->new($source)->slurp_utf8, \%env );
-        }
-        elsif ( $ref eq 'HASH' ) {    # bare hash ref
+        if ( ref $source eq 'HASH' ) {    # bare hash ref
             %kv = %$source;
         }
-        elsif ( $ref eq 'ARRAY' ) {
-            %kv = $parse->( join( "\n", @$source ), \%env );
-        }
-        elsif ( $ref eq 'SCALAR' ) {
-            %kv = $parse->( $$source, \%env );
-        }
-        elsif ( $ref eq 'GLOB' ) {
-            local $/;
-            %kv = $parse->( scalar <$source>, \%env );
-            close $source;
-        }
-        elsif ( eval { $source->can('getline') } ) {
-            local $/;
-            %kv = $parse->( scalar $source->getline, \%env );
-            $source->close;
-        }
         else {
-            Carp::croak "Don't know how to handle '$source'";
+            %kv = Dotenv::File->read($source)->as_hash;
         }
 
         # don't overwrite anything that already exists
