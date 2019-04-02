@@ -1,4 +1,4 @@
-qw(
-    ker_sploosh zapeth
-    wham_eth thwape
-)
+{
+  "ker_sploosh" => "zapeth",
+  "wham_eth" => "thwape",
+}
