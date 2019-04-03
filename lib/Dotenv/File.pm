@@ -82,9 +82,6 @@ sub _fail {
     croak sprintf "Parsing failed at $format", @args;
 }
 
-my $key_strict_re = qr{[a-zA-Z_][a-zA-Z0-9_]*};
-my $key_loose_re  = qr/[\w.-]+/;
-
 sub _to_fh {
     my ($read) = @_;
 
@@ -121,92 +118,19 @@ sub read {
     my @lines;
     my %settings;
 
-    my $prefix_re =
-        !$self->{strict} || $self->{export} ? qr/\s*(?:export\s+)?/
-                                            : qr{\s*}
-    ;
-    my ($key_re, $assign_re, $unescape_re) =
-        $self->{strict} ? (
-            $key_strict_re,
-            qr{=},
-            qr{["\$`\\]},
-        ) : (
-            $key_loose_re,
-            qr/\s*=\s*/,
-            qr{["\$`\\n]},
-        );
-    my $value_re = qr{
-            '[^\x00\r\n']*'
-        |
-            "(?:[^\x00\r\n"\$`\\]|\\.)*"
-        |
-            (?:[^\x00\r\n'"\$`\\\s]|\\.)*
-    }x;
-
     my $ln = 0;
     while (defined( my $line = readline $read )) {
         $ln++;
         chomp $line;
         utf8::decode($line) unless utf8::is_utf8($line);
 
-        my $prefix = '';
-        if ($ln == 1 and $line =~ m{\G(\x{feff})}gc) {
-            $prefix .= $1;
-        }
-        if ($line =~ m{\G\s*(?:#|\z)}gc) {
-            push @lines, [undef, undef, $line];
-            next;
-        }
-        if ($line =~ m{\G($prefix_re)}gc) {
-            $prefix .= $1;
-        }
-        my $key;
-        if ($line =~ m{\G($prefix_re)($key_re)}gc) {
-            $key = $2;
-            $prefix .= $1 . $2;
-        }
-        else {
-            _fail(\$line, $name, $ln, 'variable name');
-        }
+        my $entry = $self->_parse_line($line, $name, $ln);
 
-        if ($line =~ m{\G($assign_re)}gc) {
-            $prefix .= $1;
-        }
-        else {
-            _fail(\$line, $name, $ln, 'assignment');
-        }
-
-        my $value = '';
-        my $value_text = '';
-        while ($line =~ m{\G($value_re)}gc) {
-            my $part = $1;
-            $value_text .= $part;
-            if ($part =~ s/\A"(.*)"\z/$1/) {
-                $part =~ s{(\\$unescape_re)}{$unescape{$1}}g;
-            }
-            elsif ($part =~ s/\A'(.*)'\z/$1/) {
-            }
-            else {
-                $part =~ s{\\(.)}{$1}g;
-            }
-            $value .= $part;
-        }
-
-        my $post = '';
-        if (pos $line == length $line) {
-        }
-        elsif ($line =~ m{\G(\s+#.*|\s*\z)}gc) {
-            $post = $1;
-        }
-        elsif ($line =~ m{\G\s+}gc) {
-            _fail(\$line, $name, $ln, 'comment or end of line');
-        }
-        else {
-            _fail(\$line, $name, $ln, 'value, comment, or end of line');
-        }
-
-        my $entry = [$key, $value, $prefix, $value_text, $post];
         push @lines, $entry;
+
+        my $key = $entry->[0];
+        next
+            if !defined $key;
         if (exists $settings{$key}) {
             carp "Found duplicate setting '$key' at $name line $ln";
             $settings{$key}[1] = undef;
@@ -222,6 +146,99 @@ sub read {
         %settings,
     );
     return $self;
+}
+
+my $prefix_export_re    = qr{\s*(?:export\s+)?};
+my $prefix_plain_re     = qr{\s*};
+
+my $key_strict_re       = qr{[a-zA-Z_][a-zA-Z0-9_]*};
+my $key_loose_re        = qr{[\w.-]+};
+
+my $assign_strict_re    = qr{=};
+my $assign_loose_re     = qr{\s*=\s*};
+
+my $unescape_strict_re  = qr{["\$`\\]};
+my $unescape_loose_re   = qr{["\$`\\n]};
+
+my $value_re = qr{
+        '[^\x00\r\n']*'
+    |
+        "(?:[^\x00"\$`\\]|\\.)*"
+    |
+        (?:[^\x00'"\$`\\\s]|\\.)*
+}x;
+
+sub _parse_line {
+    my ($self, $line, $name, $ln) = @_;
+
+    my $prefix_re = $self->{export} ? $prefix_export_re : $prefix_plain_re;
+    my ($key_re, $assign_re, $unescape_re) =
+        $self->{strict} ? (
+            $key_strict_re,
+            $assign_strict_re,
+            $unescape_strict_re,
+        ) : (
+            $key_loose_re,
+            $assign_loose_re,
+            $unescape_loose_re,
+        );
+
+    my $prefix = '';
+    if ($ln && $ln == 1 and $line =~ m{\G(\x{feff})}gc) {
+        $prefix .= $1;
+    }
+    if ($line =~ m{\G\s*(?:#|\z)}gc) {
+        return [undef, undef, $line];
+    }
+    if ($line =~ m{\G($prefix_re)}gc) {
+        $prefix .= $1;
+    }
+    my $key;
+    if ($line =~ m{\G($prefix_re)($key_re)}gc) {
+        $key = $2;
+        $prefix .= $1 . $2;
+    }
+    else {
+        _fail(\$line, $name, $ln, 'variable name');
+    }
+
+    if ($line =~ m{\G($assign_re)}gc) {
+        $prefix .= $1;
+    }
+    else {
+        _fail(\$line, $name, $ln, 'assignment');
+    }
+
+    my $value = '';
+    my $value_text = '';
+    while ($line =~ m{\G($value_re)}gc) {
+        my $part = $1;
+        $value_text .= $part;
+        if ($part =~ s/\A'(.*)'\z/$1/s) {
+        }
+        elsif ($part =~ s/\A"(.*)"\z/$1/s) {
+            $part =~ s{(\\$unescape_re)}{$unescape{$1}}g;
+        }
+        else {
+            $part =~ s{\\(.)}{$1}sg;
+        }
+        $value .= $part;
+    }
+
+    my $post = '';
+    if (pos $line == length $line) {
+    }
+    elsif ($line =~ m{\G(\s+#.*|\s*\z)}gc) {
+        $post = $1;
+    }
+    elsif ($line =~ m{\G\s+}gc) {
+        _fail(\$line, $name, $ln, 'comment or end of line');
+    }
+    else {
+        _fail(\$line, $name, $ln, 'value, comment, or end of line');
+    }
+
+    return [$key, $value, $prefix, $value_text, $post];
 }
 
 sub exists {
