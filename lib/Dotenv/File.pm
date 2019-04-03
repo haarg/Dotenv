@@ -9,8 +9,8 @@ sub new {
     my $class = shift;
     my %args = @_ == 1 && ref $_[0] ? %{$_[0]} : @_;
     my $self = bless {
-        strict => !!$args{strict},
-        export => !!$args{export},
+        strict => exists $args{strict} ? !!$args{strict} : 0,
+        export => exists $args{export} ? !!$args{export} : 1,
     }, $class;
     my $settings = $args{settings};
     my @settings
@@ -394,6 +394,9 @@ C<new_config.env>:
 B<Dotenv::File> allows reading and modifying dotenv configuration files, while
 maintaining the order and comments of the original file.
 
+A C<dotenv> file contains a flat list of key value pairs.  The format is
+intended to be parsable directly by a bourne compatible shell.
+
 =head1 METHODS
 
 =head2 new
@@ -411,12 +414,11 @@ sequences in values are translated to real newline characters.
 
 =item export
 
-Default to the inverse of the strict flag.  Allows a leading C<export > on
-entries.
+Default true.  Allows a leading C<export > on entries.
 
 =item settings
 
-A hashref or arrayref of settings to apply in the inital object.
+A hashref or arrayref of settings to apply in the initial object.
 
 =back
 
