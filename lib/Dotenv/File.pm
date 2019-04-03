@@ -160,12 +160,55 @@ my $assign_loose_re     = qr{\s*=\s*};
 my $unescape_strict_re  = qr{["\$`\\]};
 my $unescape_loose_re   = qr{["\$`\\n]};
 
+my %ansi_escapes = (
+  "a" => "\a",
+  "b" => "\b",
+  "e" => "\e",
+  "E" => "\e",
+  "f" => "\f",
+  "n" => "\n",
+  "r" => "\r",
+  "t" => "\t",
+  "v" => "\x0b",
+);
+
+my %control_escapes = (
+  ( map +( chr($_) => chr($_ % 32) ), 0 .. 255 ),
+  "\x00" => "\r\x00",
+  "\x01" => "\x01\x01",
+  "\x3f" => "\x7f",
+  "\x7f" => "\x01\x7f",
+  "\\\\" => "\x1c",
+  "\\'"  => "\x1c'"
+);
+
+my $ansi_escape_re = qr{
+  \\
+  (?:
+    (${\( '['.join('', sort keys %ansi_escapes).']' )})
+  |
+    ([0-7]{1,3})
+  |
+    x([0-9a-fA-F]{1,2})
+  |
+    u([0-9a-fA-F]{1,4})
+  |
+    U([0-9a-fA-F]{1,8})
+  |
+    c(${\join '|', map quotemeta, sort keys %control_escapes})
+  |
+    (.)
+  )?
+}x;
+
 my $value_re = qr{
         '[^\x00\r\n']*'
     |
         "(?:[^\x00"\$`\\]|\\.)*"
     |
         (?:[^\x00'"\$`\\\s]|\\.)*
+    |
+        \$'(?:[^'\\]|$ansi_escape_re)*'
 }x;
 
 sub _parse_line {
@@ -218,6 +261,18 @@ sub _parse_line {
         }
         elsif ($part =~ s/\A"(.*)"\z/$1/s) {
             $part =~ s{(\\$unescape_re)}{$unescape{$1}}g;
+        }
+        elsif ($part =~ s/\A\$'(.*)'\z/$1/s) {
+            $part =~ s{$ansi_escape_re}{
+                  defined $1 ? $ansi_escapes{$1}
+                : defined $2 ? chr(oct($2))
+                : defined $3 ? chr(hex($3))
+                : defined $4 ? chr(hex($4))
+                : defined $5 ? chr(hex($5))
+                : defined $6 ? $control_escapes{$6}
+                : defined $7 ? $7
+                             : "\\"
+            }ge;
         }
         else {
             $part =~ s{\\(.)}{$1}sg;
