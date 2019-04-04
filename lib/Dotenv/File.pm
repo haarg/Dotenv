@@ -304,7 +304,7 @@ sub as_hash {
         @{ $self->{lines} };
 }
 
-sub keys {
+sub keys :method {
     my ($self) = @_;
     return
         map $_->[0],
@@ -328,6 +328,50 @@ sub remove_duplicates {
         }
         @{ $self->{lines} };
     return @removed;
+}
+
+sub clone {
+    my ($self) = @_;
+    my @lines = map [ @$_ ], @{ $self->{lines} };
+    my %map;
+    @map{@{ $self->{lines} }} = @lines;
+    my %settings =
+        map +( $_ => $map{ $self->{settings}{$_} } ),
+        keys %{ $self->{settings} };
+
+    return bless {
+        strict   => $self->{strict},
+        export   => $self->{export},
+        lines    => \@lines,
+        settings => \%settings,
+    }, ref $self;
+}
+
+sub sort {
+    my ($self, $sort_sub) = @_;
+    $sort_sub ||= sub {
+        my ($cmp_a, $cmp_b) = @_;
+        $cmp_a->[0] cmp $cmp_b->[0]
+    };
+    @{ $self->{lines} } =
+        sort { $sort_sub->($a->[0], $b->[0]) }
+        map [ [ $_->[0], $_->[1], join('', @{$_}[2 .. $#$_]) ], $_ ],
+        grep defined $_->[1],
+        @{ $self->{lines} };
+    return 1;
+}
+
+sub cleanup {
+    my ($self) = @_;
+    @{ $self->{lines} } =
+        grep defined $_->[1],
+        @{ $self->{lines} };
+    for ( @{ $self->{lines} } ) {
+        $_->[2] = "$_->[0]=";
+        $_->[3] = $self->_escape($_->[1]);
+        splice @$_, 4;
+    }
+    return 1;
 }
 
 sub delete {
@@ -482,6 +526,14 @@ Deletes a key.  The entire line the key exists on will be removed.
 
 Returns a list of keys that are set, in the same order they were read from the
 file.
+
+=head2 remove_duplicates
+
+=head2 sort
+
+=head2 cleanup
+
+=head2 clone
 
 =head2 as_hash
 
