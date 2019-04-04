@@ -312,6 +312,24 @@ sub keys {
         @{ $self->{lines} };
 }
 
+sub remove_duplicates {
+    my ($self) = @_;
+    my @removed;
+    my %removed;
+    @{ $self->{lines} } =
+        grep {
+            if (defined $_->[0] && !defined $_->[1]) {
+                push @removed, join('', @$_[2 .. $#$_]);
+                0;
+            }
+            else {
+                1;
+            }
+        }
+        @{ $self->{lines} };
+    return @removed;
+}
+
 sub delete {
     my ($self, $key) = @_;
     my $ref = delete $self->{settings}{$key};
